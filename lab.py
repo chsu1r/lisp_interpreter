@@ -108,7 +108,20 @@ def paran_count(l):
 carlae_builtins = {
     '+': sum,
     '-': lambda args: -args[0] if len(args) == 1 else (args[0] - sum(args[1:])),
+    '/': lambda args: divide(args),
+    '*': lambda args: multiply(args)
 }
+
+def divide(l):
+    j = l[0]
+    for item in l[1:]:
+        j = j/item
+    return j
+def multiply(l):
+    j = l[0]
+    for item in l[1:]:
+        j *= item
+    return j
 
 
 def evaluate(tree):
@@ -120,11 +133,27 @@ def evaluate(tree):
         tree (type varies): a fully parsed expression, as the output from the
                             parse function
     """
-    raise NotImplementedError
+    def recur(current_exp):
+        current_function = carlae_builtins.get(current_exp[0])
+        if current_function == None:
+            raise EvaluationError
+        input_values = []
+        for value in current_exp[1:]:
+            if type(value) != list:
+                input_values.append(value)
+            else:
+                input_values.append(recur(value))
+        return current_function(input_values)
+    return recur(tree)
 
 
 if __name__ == '__main__':
     # code in this block will only be executed if lab.py is the main file being
     # run (not when this module is imported)
-    k = tokenize('(define circle-area (lambda (r) (* 3.14 (* r r))))')
-    print(parse(['(', '+', '2', '(', '-', '5', '3', ')', '7', '8', ')']))
+    while True:
+        inff = input("in> ")
+        if inff == "QUIT":
+            break
+        k = parse(tokenize(inff))
+        print(k)
+        print("out> ",evaluate(k))
