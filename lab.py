@@ -2,10 +2,52 @@
 
 import sys
 
+carlae_builtins = {
+    '+': sum,
+    '-': lambda args: -args[0] if len(args) == 1 else (args[0] - sum(args[1:])),
+    '/': lambda args: divide(args),
+    '*': lambda args: multiply(args)
+}
 
 class EvaluationError(Exception):
     """Exception to be raised if there is an error during evaluation."""
     pass
+
+class Environment():
+    def __init__(self,parent = carlae_builtins):
+        self.variables = {}
+        self.parent_environment = parent
+        self.child_environments = []
+
+    def define(self,var,value):
+        self.variables[var] = value
+    def retrieve(self,variable):
+        k = self.variables.get(variable)
+        if k == None:
+            if self.parent_environment == None:
+                raise EvaluationError
+            elif self.parent_environment == carlae_builtins:
+                p = carlae_builtins.get(variable)
+                if p == None:
+                    print("Error",variable,self.parent_environment)
+                    raise EvaluationError
+                return p
+            else:
+                return self.parent_environment.retrieve(variable)
+        return k
+
+class func():
+    def __init__(self,variable_names,body,parent):
+        self.vars = variable_names
+        self.body = body
+        self.env_parent = parent
+    def execute(self,variables):
+        new_env = Environment(parent=self.env_parent)
+        for i in range(len(variables)):
+            new_env.define(self.vars[i],variables[i])
+        k = evaluate(self.body,new_env)
+        return k
+
 
 
 def tokenize(source):
@@ -105,13 +147,6 @@ def paran_count(l):
         return False
     return True
 
-carlae_builtins = {
-    '+': sum,
-    '-': lambda args: -args[0] if len(args) == 1 else (args[0] - sum(args[1:])),
-    '/': lambda args: divide(args),
-    '*': lambda args: multiply(args)
-}
-
 def divide(l):
     j = l[0]
     for item in l[1:]:
@@ -124,7 +159,7 @@ def multiply(l):
     return j
 
 
-def evaluate(tree):
+def evaluate(tree,env = Environment()):
     """
     Evaluate the given syntax tree according to the rules of the carlae
     language.
@@ -134,17 +169,45 @@ def evaluate(tree):
                             parse function
     """
     def recur(current_exp):
-        current_function = carlae_builtins.get(current_exp[0])
-        if current_function == None:
+        if current_exp[0] == "define":
+            f = evaluate(current_exp[2],env)
+            env.define(current_exp[1],f)
+            return f
+        elif current_exp[0] == "lambda":
+            p = func(current_exp[1],current_exp[2],Environment(parent=env))
+            return p
+        current_function = None
+        if type(current_exp[0])!=list:
+            current_function = env.retrieve(current_exp[0])
+
+        if current_function == None and type(current_exp[0]) != list:
             raise EvaluationError
+        elif type(current_exp[0]) == list:
+            current_function = evaluate(current_exp[0],env)
         input_values = []
         for value in current_exp[1:]:
             if type(value) != list:
-                input_values.append(value)
+                if type(value) == float or type(value) == int:
+                    input_values.append(value)
+                else:
+                    v = env.retrieve(value)
+                    input_values.append(v)
             else:
                 input_values.append(recur(value))
+        if type(current_function)==func:
+            return current_function.execute(input_values)
         return current_function(input_values)
+    if type(tree) == str:
+        v = env.retrieve(tree)
+        if v != None:
+            return v
+    if type(tree) != list:
+        return tree
     return recur(tree)
+
+def result_and_env(tree,env=Environment()):
+    r = evaluate(tree,env)
+    return r,env
 
 
 if __name__ == '__main__':
