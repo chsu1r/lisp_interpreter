@@ -42,6 +42,8 @@ class func():
         self.body = body
         self.env_parent = parent
     def execute(self,variables):
+        if len(variables) != len(self.vars):
+            raise EvaluationError
         new_env = Environment(parent=self.env_parent)
         for i in range(len(variables)):
             new_env.define(self.vars[i],variables[i])
@@ -169,10 +171,18 @@ def evaluate(tree,env = Environment()):
                             parse function
     """
     def recur(current_exp):
+        if current_exp == []:
+            raise EvaluationError
         if current_exp[0] == "define":
-            f = evaluate(current_exp[2],env)
-            env.define(current_exp[1],f)
-            return f
+
+            if type(current_exp[1]) != list:
+                f = evaluate(current_exp[2], env)
+                env.define(current_exp[1],f)
+                return f
+            else:
+                p = func(current_exp[1][1:],current_exp[2],Environment(parent=env))
+                env.define(current_exp[1][0],p)
+                return p
         elif current_exp[0] == "lambda":
             p = func(current_exp[1],current_exp[2],Environment(parent=env))
             return p
